@@ -1,10 +1,11 @@
 # Foundation Stratum Template (v2)
 
-[![Foundation CI](https://github.com/blinkhash/foundation-server-v2/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/blinkhash/foundation-server-v2/actions/workflows/build.yml)
+[![Codecov Coverage](https://img.shields.io/codecov/c/github/blinkhash/foundation-v2-template.svg?style=flat-square)](https://codecov.io/gh/blinkhash/foundation-v2-template/)
+[![Foundation CI](https://github.com/blinkhash/foundation-v2-template/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/blinkhash/foundation-v2-template/actions/workflows/build.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Discord](https://img.shields.io/discord/738590795384356904)](https://discord.gg/rNjez6VgNF)
 
-This portal is a high performance Stratum server written entirely in Node.js. One instance of this software can startup and manage multiple coin pools, each with their own daemon and Stratum ports. This server itself was built to be efficient, transparent, and easy to setup, while still maintaining greater scalability than many of the other open-source Stratum servers. This repository itself, however, is simply a module. It will do nothing on its own. Unless you're a Node.js developer who would like to learn more regarding stratum authentication and raw share data, this module will not be of use to you. For a complete backend server that implements this module, see https://github.com/blinkhash/foundation-server-v2. It handles payments, database integration, multi-coin/pool support, and more.
+This portal is a high performance stratum server written entirely in Node.js. One instance of this software can startup and manage multiple coin pools, each with their own daemon and stratum ports. This server itself was built to be efficient, transparent, and easy to setup, while still maintaining greater scalability than many of the other open-source stratum servers. While this module will allow you to connect and mine directly on the a coin's blockchain, it doesn't include support for an API, payment processor, or share handler. For a complete server that includes these features and allows you to integrate multiple of these modules, see https://github.com/blinkhash/foundation-v2-server.
 
 #### Need Support?
 
