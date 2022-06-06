@@ -51,7 +51,6 @@ config.primary.address = 'example';
 config.primary.coin = {};
 config.primary.coin.name = 'Bitcoin';
 config.primary.coin.symbol = 'BTC';
-config.primary.coin.version = 4;
 
 // Daemon Configuration
 config.primary.daemons = [];

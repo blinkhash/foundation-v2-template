@@ -45,7 +45,7 @@ const Transactions = function(config) {
     const txInPrevOutIndex = Math.pow(2, 32) - 1;
     const txOutputBuffers = [];
 
-    let txVersion = _this.config.primary.coin.version;
+    let txVersion = 4;
     const network = !_this.config.settings.testnet ?
       _this.configMainnet :
       _this.configTestnet;
