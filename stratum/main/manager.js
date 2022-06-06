@@ -149,7 +149,8 @@ const Manager = function(config, configMain) {
     const headerBigInt = utils.bufferToBigInt(headerHash.reverse());
 
     // Calculate Share Difficulty
-    const shareDiff = Algorithms.sha256d.diff / Number(headerBigInt) * Algorithms.sha256d.multiplier;
+    const shareMultiplier = Algorithms.sha256d.multiplier;
+    const shareDiff = Algorithms.sha256d.diff / Number(headerBigInt) * shareMultiplier;
     const blockDiffAdjusted = job.difficulty * Algorithms.sha256d.multiplier;
     const blockHash = blockDigest(headerBuffer, submission.nTime).toString('hex');
     const blockHex = job.handleBlocks(headerBuffer, coinbaseBuffer).toString('hex');

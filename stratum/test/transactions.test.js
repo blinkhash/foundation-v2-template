@@ -1,5 +1,5 @@
 const Transactions = require('../main/transactions');
-const config = require('../../configs/bitcoin.js');
+const config = require('../../configs/bitcoin');
 const testdata = require('../../daemon/test/daemon.mock');
 
 config.primary.address = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';

@@ -23,8 +23,6 @@
             "link_settings": {
                 "libraries": [
                     "-Wl,-rpath,./build/Release/",
-                    "-lboost_system",
-                    "-lsodium"
                 ]
             },
             'conditions': [

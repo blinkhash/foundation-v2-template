@@ -1,5 +1,5 @@
 const Client = require('../main/client');
-const config = require('../../configs/bitcoin.js')
+const config = require('../../configs/bitcoin')
 const events = require('events');
 
 ////////////////////////////////////////////////////////////////////////////////

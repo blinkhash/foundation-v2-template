@@ -1,8 +1,8 @@
 const MockDate = require('mockdate');
 const Network = require('../main/network');
 const Template = require('../main/template');
-const config = require('../../configs/bitcoin.js');
-const configMain = require('../../configs/main.js');
+const config = require('../../configs/bitcoin');
+const configMain = require('../../configs/main');
 const events = require('events');
 const testdata = require('../../daemon/test/daemon.mock');
 

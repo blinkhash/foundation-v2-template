@@ -1,6 +1,6 @@
 const Algorithms = require('../main/algorithms');
 const Template = require('../main/template');
-const config = require('../../configs/bitcoin.js');
+const config = require('../../configs/bitcoin');
 const testdata = require('../../daemon/test/daemon.mock');
 const utils = require('../main/utils');
 

@@ -1,7 +1,7 @@
 const Manager = require('../main/manager');
 const MockDate = require('mockdate');
-const config = require('../../configs/bitcoin.js');
-const configMain = require('../../configs/main.js');
+const config = require('../../configs/bitcoin');
+const configMain = require('../../configs/main');
 const testdata = require('../../daemon/test/daemon.mock');
 
 config.primary.address = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
