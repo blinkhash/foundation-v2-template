@@ -1,5 +1,5 @@
 {
-  "name": "foundation-v2-bitcoin",
+  "name": "foundation-v2-template",
   "version": "0.0.1",
   "description": "A high performance Stratum pool-server written in Node.js",
   "keywords": [
@@ -8,9 +8,9 @@
     "mining",
     "pool"
   ],
-  "homepage": "https://github.com/blinkhash/foundation-v2-bitcoin",
+  "homepage": "https://github.com/blinkhash/foundation-v2-template",
   "bugs": {
-    "url": "https://github.com/blinkhash/foundation-v2-bitcoin/issues"
+    "url": "https://github.com/blinkhash/foundation-v2-template/issues"
   },
   "license": "GPL-3.0",
   "author": {
@@ -34,7 +34,7 @@
   "contributors": [],
   "repository": {
     "type": "git",
-    "url": "https://github.com/blinkhash/foundation-v2-bitcoin.git"
+    "url": "https://github.com/blinkhash/foundation-v2-template.git"
   },
   "dependencies": {
     "async": "^3.2.3",
