@@ -34,8 +34,8 @@ const Interface = function(daemons) {
     // Unauthorized Access
     if ([401, 403].includes(response.statusCode)) {
       callback({
-        error: true,
-        response: 'Unauthorized RPC access. Invalid RPC username or password',
+        error: { code: -1, message: 'Unauthorized RPC access. Invalid RPC username or password' },
+        response: null,
         instance: instance,
         data: data,
       });
@@ -73,8 +73,8 @@ const Interface = function(daemons) {
     // Data is Malformed
     } catch(e) {
       callback({
-        error: true,
-        response: 'Could not parse RPC data from daemon response',
+        error: { code: -1, message: 'Could not parse RPC data from daemon response' },
+        response: null,
         instance: instance,
         data: data,
       });
@@ -113,8 +113,8 @@ const Interface = function(daemons) {
       if (!responded) {
         responded = true;
         callback({
-          error: true,
-          response: e.message,
+          error: { code: -1, message: e.message },
+          response: null,
           instance: instance,
           data: null,
         });
@@ -131,8 +131,8 @@ const Interface = function(daemons) {
     // No Commands Passed
     if (requests.length < 1) {
       callback({
-        error: true,
-        response: 'No commands passed to daemon',
+        error: { code: -1, message: 'No commands passed to daemon' },
+        response: null,
         instance: null,
         data: null,
       });
