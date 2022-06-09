@@ -23,22 +23,6 @@ const Manager = function(config, configMain) {
   this.extraNoncePlaceholder = Buffer.from('f000000ff111111f', 'hex');
   this.extraNonce2Size = _this.extraNoncePlaceholder.length - _this.extraNonceCounter.size;
 
-  // Update Current Managed Job
-  this.handleCurrentJob = function(rpcData) {
-
-    // Build New Block Template
-    const tmpTemplate = new Template(
-      _this.jobCounter.next(),
-      _this.config,
-      Object.assign({}, rpcData),
-      _this.extraNoncePlaceholder);
-
-    // Update Current Template
-    _this.currentJob = tmpTemplate;
-    _this.emit('manager.block.updated', tmpTemplate);
-    _this.validJobs[tmpTemplate.jobId] = tmpTemplate;
-  };
-
   // Check if New Block is Processed
   this.handleTemplate = function(rpcData, newBlock) {
 
@@ -146,13 +130,13 @@ const Manager = function(config, configMain) {
     // Start Generating Block Hash
     const headerBuffer = job.handleHeader(version, merkleRoot, submission.nTime, submission.nonce);
     const headerHash = headerDigest(headerBuffer, nTimeInt);
-    const headerBigInt = utils.bufferToBigInt(headerHash.reverse());
+    const headerBigInt = utils.bufferToBigInt(utils.reverseBuffer(headerHash));
 
     // Calculate Share Difficulty
     const shareMultiplier = Algorithms.sha256d.multiplier;
     const shareDiff = Algorithms.sha256d.diff / Number(headerBigInt) * shareMultiplier;
     const blockDiffAdjusted = job.difficulty * Algorithms.sha256d.multiplier;
-    const blockHash = blockDigest(headerBuffer, submission.nTime).toString('hex');
+    const blockHash = utils.reverseBuffer(blockDigest(headerBuffer, submission.nTime)).toString('hex');
     const blockHex = job.handleBlocks(headerBuffer, coinbaseBuffer).toString('hex');
 
     // Check if Share is Valid Block Candidate
@@ -207,9 +191,9 @@ const Manager = function(config, configMain) {
       shareDiff: shareDiff.toFixed(8),
     };
 
-    _this.emit('share', shareData, auxShareData, blockValid);
-    return { error: null, hash: blockHash, hex: blockHex, result: true };
-  }
+    _this.emit('manager.share', shareData, auxShareData, blockValid);
+    return { error: null, hash: blockHash, hex: blockHex, response: true };
+  };
 };
 
 module.exports = Manager;

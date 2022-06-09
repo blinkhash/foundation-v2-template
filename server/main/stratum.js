@@ -47,11 +47,15 @@ const Stratum = function (logger, config, configMain) {
     // Handle Stratum Main Events
     _this.stratum.on('pool.started', () => {});
     _this.stratum.on('pool.log', (severity, text) => {
-      _this.logger[severity]("Pool", _this.config.name, [text]);
+      _this.logger[severity]('Pool', _this.config.name, [text]);
     });
 
     // Handle Stratum Share Events
-    _this.stratum.on('pool.share', (shareData, shareType, blockValid, callback) => {});
+    _this.stratum.on('pool.share', (shareData) => {
+      const address = shareData.addrPrimary.split('.')[0];
+      const text = _this.text.stratumSharesText1(shareData.difficulty, shareData.shareDiff, address, shareData.ip);
+      _this.logger['log']('Pool', _this.config.name, [text]);
+    });
   };
 
   // Output Stratum Data on Startup
@@ -59,8 +63,8 @@ const Stratum = function (logger, config, configMain) {
 
     // Build Pool Starting Message
     const output = [
-      _this.text.startingMessageText1(_this.config.name),
-      _this.text.startingMessageText2(_this.config.coins),
+      _this.text.startingMessageText1(`Pool-${ _this.config.primary.coin.name }`),
+      _this.text.startingMessageText2(`[${_this.config.primary.coin.name }]`),
       _this.text.startingMessageText3(_this.config.settings.testnet ? 'Testnet' : 'Mainnet'),
       _this.text.startingMessageText4(_this.stratum.statistics.ports.join(', ')),
       _this.text.startingMessageText5(_this.stratum.statistics.feePercentage * 100),
@@ -71,10 +75,10 @@ const Stratum = function (logger, config, configMain) {
       _this.text.startingMessageText10()];
 
     // Send Starting Message to Logger
-    if (_this.forkId === "0") {
-      _this.logger["log"]("Pool", null, output, true);
+    if (_this.forkId === '0') {
+      _this.logger['log']('Pool', null, output, true);
     }
-  }
+  };
 
   // Setup Pool Stratum Capabilities
   this.setupStratum = function(callback) {

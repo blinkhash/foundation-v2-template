@@ -1,8 +1,9 @@
-const Algorithms = require('./algorithms');
 const bchaddr = require('bchaddrjs');
 const bech32 = require('bech32');
 const bs58check = require('bs58check');
 const crypto = require('crypto');
+const merkleTree = require('merkle-lib');
+const merkleProof = require('merkle-lib/proof');
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -231,6 +232,14 @@ exports.getEncodingLength = function(data) {
     : data <= 0xff ? 2
       : data <= 0xffff ? 3
         : 5;
+};
+
+// Calculate Merkle Steps for Transactions
+exports.getMerkleSteps = function(transactions) {
+  const hashes = exports.convertHashToBuffer(transactions);
+  const merkleData = [Buffer.from([], 'hex')].concat(hashes);
+  const merkleTreeFull = merkleTree(merkleData, exports.sha256d);
+  return merkleProof(merkleTreeFull, merkleData[0]).slice(1, -1).filter(node => node !== null);
 };
 
 // Calculate Minimal OPCodes for Buffer

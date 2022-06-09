@@ -13,7 +13,7 @@ exports.startingMessageText6 = (height) => `Current block height: ${ height }`;
 exports.startingMessageText7 = (difficulty) => `Current block difficulty: ${ difficulty }`;
 exports.startingMessageText8 = (difficulty) => `Current network difficulty: ${ difficulty }`;
 exports.startingMessageText9 = (peers) => `Current peer count: ${ peers }`;
-exports.startingMessageText10 = () => `Server initialized successfully ...`;
+exports.startingMessageText10 = () => 'Server initialized successfully ...';
 
 // Loader Text
 exports.loaderAlgorithmsText1 = (algorithm) => `The requested mining algorithm ("${ algorithm }") is unsupported. Check your configuration files`;
@@ -32,10 +32,10 @@ exports.loaderRecipientsText2 = () => 'The recipient percentage is greater than 
 exports.stratumBlocksText1 = () => 'The block was rejected by the network';
 exports.stratumBlocksText2 = (host, error) => `RPC error with primary daemon instance (${ host }) when submitting block: ${ error }`;
 exports.stratumBlocksText3 = (host) => `Primary daemon instance (${ host }) rejected a supposedly valid block`;
-exports.stratumBlocksText4 = (coin) => `Submitted a primary block successfully to ${ coin }'s daemon instance(s)`;
+exports.stratumBlocksText4 = (coin, height) => `Submitted a primary block (${ coin }:${ height }) successfully to ${ coin }'s daemon instance(s)`;
 exports.stratumBlocksText5 = (host, error) => `RPC error with auxiliary daemon instance (${ host }) when submitting block: ${ error }`;
 exports.stratumBlocksText6 = (host) => `Auxiliary daemon instance (${ host }) rejected a supposedly valid block`;
-exports.stratumBlocksText7 = (coin) => `Submitted an auxiliary block successfully to ${ coin }'s daemon instance(s)`;
+exports.stratumBlocksText7 = (coin, height) => `Submitted an auxiliary block (${ coin }:${ height }) successfully to ${ coin }'s daemon instance(s)`;
 exports.stratumClientText1 = (address, difficulty) => `Difficulty update queued for worker: ${ address } (${ difficulty })`;
 exports.stratumClientText2 = (address, difficulty) => `Difficulty updated successfully for worker: ${ address } (${ difficulty })`;
 exports.stratumClientText3 = (client, message) => `A client (${ client }) sent a malformed message to the server: ${ message }`;
@@ -53,9 +53,10 @@ exports.stratumFirstJobText2 = (difficulty, port, initial) => `Network difficult
 exports.stratumManagerText1 = () => 'Block notification via RPC after primary block submission';
 exports.stratumManagerText2 = () => 'Block notification via RPC after auxiliary block submission';
 exports.stratumNetworkText1 = (time) => `No new blocks for ${ time } seconds. Updating transactions and rebroadcasting work`;
-exports.stratumPollingText1 = (coin, height) => `Primary chain (${ coin }) notification via RPC polling at height ${ height }`;
-exports.stratumPollingText2 = (coin, height) => `Auxiliary chain (${ coin }) notification via RPC polling at height ${ height }`;
+exports.stratumPollingText1 = (coin, height) => `Requested template from primary chain (${ coin }:${ height }) via RPC polling`;
+exports.stratumPollingText2 = (coin, height) => `Requested template from auxiliary chain (${ coin }:${ height }) via RPC polling`;
 exports.stratumRecipientsText1 = () => 'No recipients have been added, which means that no fees will be taken';
+exports.stratumSharesText1 = (difficulty, actual, address, ip) => `A share was accepted at difficulty ${ difficulty }/${ actual } by ${ address } [${ ip }]`;
 exports.stratumSettingsText1 = (error) => `Could not start pool, error with RPC response: ${ error }`;
 exports.stratumSettingsText2 = (request, error) => `Could not start pool, error with RPC command response: ${ request } - ${ error }`;
 exports.stratumSettingsText3 = () => 'The daemon reports that the given address is not valid';

@@ -1,6 +1,6 @@
 const Algorithms = require('../main/algorithms');
 const Template = require('../main/template');
-const config = require('../../configs/bitcoin');
+const config = require('../../configs/example');
 const testdata = require('../../daemon/test/daemon.mock');
 const utils = require('../main/utils');
 
@@ -48,13 +48,6 @@ describe('Test template functionality', () => {
     expect(template.generation.length).toBe(2);
     expect(template.generation[0].slice(0, -5)).toStrictEqual(Buffer.from('04000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0f5104', 'hex'));
     expect(template.generation[1]).toStrictEqual(Buffer.from('000000000200f2052a01000000160014e8df018c7e326cc253faac7e46cdc51e68542c420000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf900000000', 'hex'));
-  });
-
-  test('Test merkle branch handling', () => {
-    const template = new Template(jobId.toString(16), configCopy, rpcDataCopy, extraNonce);
-    const branches = template.handleMerkle(template.rpcData.transactions);
-    expect(branches.length).toBe(1);
-    expect(branches[0]).toStrictEqual(Buffer.from('17a35a38e70cd01488e0d5ece6ded04a9bc8125865471d36b9d5c47a08a5907c', 'hex'));
   });
 
   test('Test coinbase serialization [1]', () => {
@@ -124,7 +117,7 @@ describe('Test template functionality', () => {
       template.previous,
       template.generation[0].toString('hex'),
       template.generation[1].toString('hex'),
-      template.handleMerkle(template.rpcData.transactions).map((step) => step.toString('hex')),
+      utils.getMerkleSteps(template.rpcData.transactions).map((step) => step.toString('hex')),
       utils.packInt32BE(template.rpcData.version).toString('hex'),
       template.rpcData.bits,
       utils.packInt32BE(template.rpcData.curtime).toString('hex'),
@@ -141,7 +134,7 @@ describe('Test template functionality', () => {
       template.previous,
       template.generation[0].toString('hex'),
       template.generation[1].toString('hex'),
-      template.handleMerkle(template.rpcData.transactions).map((step) => step.toString('hex')),
+      utils.getMerkleSteps(template.rpcData.transactions).map((step) => step.toString('hex')),
       utils.packInt32BE(template.rpcData.version).toString('hex'),
       template.rpcData.bits,
       utils.packInt32BE(template.rpcData.curtime).toString('hex'),

@@ -1,5 +1,5 @@
 const Transactions = require('../main/transactions');
-const config = require('../../configs/bitcoin');
+const config = require('../../configs/example');
 const testdata = require('../../daemon/test/daemon.mock');
 
 config.primary.address = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
@@ -79,7 +79,7 @@ describe('Test transactions functionality', () => {
     const transaction = new Transactions(configCopy).handleGeneration(rpcDataCopy, extraNonce);
     expect(transaction[0].slice(0, 44)).toStrictEqual(Buffer.from('04000000010000000000000000000000000000000000000000000000000000000000000000ffffffff3b5104', 'hex'));
     expect(transaction[0].slice(49, 53)).toStrictEqual(Buffer.from('fabe6d6d', 'hex'));
-    expect(transaction[0].slice(53)).toStrictEqual(Buffer.from('7c90a5087ac4d5b9361d47655812c89b4ad0dee6ecd5e08814d00ce7385aa3170100000000000000', 'hex'));
+    expect(transaction[0].slice(53)).toStrictEqual(Buffer.from('17a35a38e70cd01488e0d5ece6ded04a9bc8125865471d36b9d5c47a08a5907c0100000000000000', 'hex'));
     expect(transaction[1]).toStrictEqual(Buffer.from('000000000200f2052a01000000160014e8df018c7e326cc253faac7e46cdc51e68542c420000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf900000000', 'hex'));
   });
 

@@ -1,6 +1,5 @@
 const Manager = require('../main/manager');
-const MockDate = require('mockdate');
-const config = require('../../configs/bitcoin');
+const config = require('../../configs/example');
 const configMain = require('../../configs/main');
 const testdata = require('../../daemon/test/daemon.mock');
 
@@ -24,15 +23,6 @@ describe('Test manager functionality', () => {
     expect(manager.extraNonceCounter.next().length).toBe(8);
     expect(manager.extraNoncePlaceholder).toStrictEqual(Buffer.from('f000000ff111111f', 'hex'));
     expect(manager.extraNonce2Size).toBe(4);
-  });
-
-  test('Test job updates given new blockTemplate', () => {
-    const manager = new Manager(configCopy, configMainCopy);
-    manager.handleCurrentJob(rpcDataCopy);
-    expect(typeof manager.currentJob).toBe('object');
-    expect(manager.currentJob.rpcData.height).toBe(1);
-    expect(manager.currentJob.rpcData.previousblockhash).toBe('9719aefb83ef6583bd4c808bbe7d49b629a60b375fc6e36bee039530bc7727e2');
-    expect(typeof manager.validJobs[1]).toBe('object');
   });
 
   test('Test template updates given new blockTemplate [1]', () => {

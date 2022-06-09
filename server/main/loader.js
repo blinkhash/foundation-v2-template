@@ -76,6 +76,10 @@ const Loader = function(logger, configMain) {
       if (!_this.checkPoolDaemons(config)) return;
       if (!_this.checkPoolPorts(config)) return;
       if (!_this.checkPoolRecipients(config)) return;
+
+    // No Configuration Created
+    } else {
+      throw new Error('Unable to find bitcoin.js file. Read the installation/setup instructions');
     }
 
     // Return Validated Configuration

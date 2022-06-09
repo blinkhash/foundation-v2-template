@@ -1,6 +1,6 @@
 const Daemon = require('../../daemon/main/daemon');
 const Pool = require('../main/pool');
-const config = require('../../configs/bitcoin');
+const config = require('../../configs/example');
 const configMain = require('../../configs/main');
 const events = require('events');
 const nock = require('nock');
@@ -153,7 +153,7 @@ describe('Test pool functionality', () => {
   let primary, auxiliary;
   let primaryDaemonsCopy, auxiliaryDaemonsCopy;
   let configCopy, configMainCopy, rpcDataCopy, auxDataCopy;
-  let blockchainDataCopy, getInfoDataCopy, peerDataCopy;
+  let blockchainDataCopy, peerDataCopy;
 
   beforeEach(() => {
     configCopy = JSON.parse(JSON.stringify(config));
@@ -164,7 +164,6 @@ describe('Test pool functionality', () => {
     rpcDataCopy = JSON.parse(JSON.stringify(testdata.getBlockTemplate()));
     auxDataCopy = JSON.parse(JSON.stringify(testdata.getAuxBlock()));
     blockchainDataCopy = JSON.parse(JSON.stringify(testdata.getBlockchainInfo()));
-    getInfoDataCopy = JSON.parse(JSON.stringify(testdata.getInfo()));
     peerDataCopy = JSON.parse(JSON.stringify(testdata.getPeerInfo()));
 
     primary = new Daemon(primaryDaemonsCopy);
@@ -350,8 +349,8 @@ describe('Test pool functionality', () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         expect(typeof pool.manager).toBe('object');
-        expect(typeof pool.manager.handleCurrentJob).toBe('function');
-        expect(pool.manager._eventsCount).toBe(3);
+        expect(typeof pool.manager.handleTemplate).toBe('function');
+        expect(pool.manager._eventsCount).toBe(2);
         done();
       });
     });
@@ -380,28 +379,6 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [4]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      mockSetupSettings(pool, () => {
-        pool.setupManager();
-        pool.network = { broadcastMiningJobs: () => done() };
-        pool.manager.emit('manager.block.updated', rpcDataCopy);
-      });
-    });
-  });
-
-  test('Test pool manager setup [5]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      mockSetupSettings(pool, () => {
-        pool.setupManager();
-        pool.manager.emit('manager.block.updated', rpcDataCopy);
-        done();
-      });
-    });
-  });
-
-  test('Test pool manager setup [6]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
       pool.on('pool.log', (type, text) => {
@@ -461,7 +438,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [7]', (done) => {
+  test('Test pool manager setup [5]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
       pool.on('pool.log', (type, text) => {
@@ -521,7 +498,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [8]', (done) => {
+  test('Test pool manager setup [6]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const response = [];
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
@@ -529,7 +506,7 @@ describe('Test pool functionality', () => {
         response.push([type, text]);
         if (response.length === 2) {
           expect(response[0][0]).toBe('special');
-          expect(response[0][1]).toBe('Submitted a primary block successfully to Bitcoin\'s daemon instance(s)');
+          expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
           expect(response[1][0]).toBe('error');
           expect(response[1][1]).toBe('The block was rejected by the network');
           done();
@@ -603,7 +580,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [9]', (done) => {
+  test('Test pool manager setup [7]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const response = [];
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
@@ -611,7 +588,7 @@ describe('Test pool functionality', () => {
         response.push([type, text]);
         if (response.length === 2) {
           expect(response[0][0]).toBe('special');
-          expect(response[0][1]).toBe('Submitted a primary block successfully to Bitcoin\'s daemon instance(s)');
+          expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
           expect(response[1][0]).toBe('special');
           expect(response[1][1]).toBe('Block notification via RPC after primary block submission');
           done();
@@ -689,7 +666,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [10]', (done) => {
+  test('Test pool manager setup [8]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const response = [];
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
@@ -697,7 +674,7 @@ describe('Test pool functionality', () => {
         response.push([type, text]);
         if (response.length === 2) {
           expect(response[0][0]).toBe('special');
-          expect(response[0][1]).toBe('Submitted a primary block successfully to Bitcoin\'s daemon instance(s)');
+          expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
           expect(response[1][0]).toBe('error');
           expect(response[1][1]).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
           done();
@@ -775,7 +752,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [13]', (done) => {
+  test('Test pool manager setup [9]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
       pool.on('pool.log', (type, text) => {
@@ -837,7 +814,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [14]', (done) => {
+  test('Test pool manager setup [10]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
       pool.on('pool.log', (type, text) => {
@@ -872,7 +849,7 @@ describe('Test pool functionality', () => {
     });
   });
 
-  test('Test pool manager setup [15]', (done) => {
+  test('Test pool manager setup [11]', (done) => {
     mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
       const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
       pool.on('pool.log', (type, text) => {
@@ -1150,7 +1127,7 @@ describe('Test pool functionality', () => {
           expect(response[0][0]).toBe('warning');
           expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
           expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Primary chain (Bitcoin) notification via RPC polling at height 2');
+          expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:2) via RPC polling');
           done();
         }
       });
@@ -1188,9 +1165,9 @@ describe('Test pool functionality', () => {
           expect(response[0][0]).toBe('warning');
           expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
           expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Primary chain (Bitcoin) notification via RPC polling at height 1');
+          expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:1) via RPC polling');
           expect(response[2][0]).toBe('log');
-          expect(response[2][1]).toBe('Auxiliary chain (Namecoin) notification via RPC polling at height 2');
+          expect(response[2][1]).toBe('Requested template from auxiliary chain (Namecoin:2) via RPC polling');
           done();
         }
       });
@@ -1284,9 +1261,9 @@ describe('Test pool functionality', () => {
           expect(response[0][0]).toBe('warning');
           expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
           expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Primary chain (Bitcoin) notification via RPC polling at height 1');
+          expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:1) via RPC polling');
           expect(response[2][0]).toBe('log');
-          expect(response[2][1]).toBe('Auxiliary chain (Namecoin) notification via RPC polling at height 2');
+          expect(response[2][1]).toBe('Requested template from auxiliary chain (Namecoin:2) via RPC polling');
           done();
         }
       });
@@ -1513,7 +1490,7 @@ describe('Test pool functionality', () => {
         }
       });
       pool.on('client.socket.success', () => {
-        pool.difficulty[client.socket.localPort] = { clients: { 'test': ["test"] }};
+        pool.difficulty[client.socket.localPort] = { clients: { 'test': ['test'] }};
         client.emit('client.difficulty.updated', 8);
       });
       mockSetupSettings(pool, () => {
@@ -1543,7 +1520,7 @@ describe('Test pool functionality', () => {
           expect(response[0][0]).toBe('warning');
           expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
           expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A client (client [example]) sent a malformed message to the server: "test"');
+          expect(response[1][1]).toBe('A client (client [example]) sent a malformed message to the server: test');
           pool.network.stopNetwork();
         }
       });

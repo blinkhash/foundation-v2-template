@@ -12,7 +12,7 @@ const Workers = function (logger) {
   this.stratum = null;
 
   // Build Promise from Input Configuration
-  this.createPromises = function(pool) {
+  this.createPromises = function() {
     return new Promise((resolve) => {
       const stratum = new Stratum(logger, _this.config, _this.configMain);
       stratum.setupStratum(() => resolve(stratum));

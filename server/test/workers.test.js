@@ -1,6 +1,6 @@
 const Logger = require('../main/logger');
 const Workers = require('../main/workers');
-const config = require('../../configs/bitcoin.js');
+const config = require('../../configs/example');
 const configMain = require('../../configs/main.js');
 const nock = require('nock');
 const testdata = require('../../daemon/test/daemon.mock');
@@ -24,9 +24,8 @@ nock.enableNetConnect('127.0.0.1');
 
 describe('Test workers functionality', () => {
 
-  let configCopy, configMainCopy, rpcDataCopy;
+  let configMainCopy, rpcDataCopy;
   beforeEach(() => {
-    configCopy = JSON.parse(JSON.stringify(config));
     configMainCopy = JSON.parse(JSON.stringify(configMain));
     rpcDataCopy = JSON.parse(JSON.stringify(testdata.getBlockTemplate()));
   });

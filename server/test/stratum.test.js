@@ -1,6 +1,6 @@
 const Logger = require('../main/logger');
 const Stratum = require('../main/stratum');
-const config = require('../../configs/bitcoin.js');
+const config = require('../../configs/example');
 const configMain = require('../../configs/main.js');
 const nock = require('nock');
 const testdata = require('../../daemon/test/daemon.mock');
