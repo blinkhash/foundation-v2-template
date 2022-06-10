@@ -1,4 +1,4 @@
-# Foundation Stratum Template (v2)
+# Foundation Stratum (Template, v2)
 
 [![Codecov Coverage](https://img.shields.io/codecov/c/github/blinkhash/foundation-v2-template.svg?style=flat-square)](https://codecov.io/gh/blinkhash/foundation-v2-template/)
 [![Foundation CI](https://github.com/blinkhash/foundation-v2-template/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/blinkhash/foundation-v2-template/actions/workflows/build.yml)

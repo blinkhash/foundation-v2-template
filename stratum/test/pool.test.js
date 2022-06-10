@@ -1,4 +1,3 @@
-const Daemon = require('../../daemon/main/daemon');
 const Pool = require('../main/pool');
 const config = require('../../configs/example');
 const configMain = require('../../configs/main');
@@ -17,13 +16,6 @@ const auxiliaryConfig = {
   }
 };
 
-const primaryDaemons = [{
-  'host': '127.0.0.1',
-  'port': '8332',
-  'username': 'foundation',
-  'password': 'foundation'
-}];
-
 const auxiliaryDaemons = [{
   'host': '127.0.0.1',
   'port': '8336',
@@ -37,7 +29,7 @@ process.env.forkId = '0';
 
 ////////////////////////////////////////////////////////////////////////////////
 
-function mockSetupDaemons(primary, auxiliary, callback) {
+function mockSetupDaemons(pool, callback) {
   nock('http://127.0.0.1:8332')
     .post('/', body => body.method === 'getpeerinfo')
     .reply(200, JSON.stringify({
@@ -52,11 +44,7 @@ function mockSetupDaemons(primary, auxiliary, callback) {
       error: null,
       result: null,
     }));
-  primary.checkInstances(() => {
-    auxiliary.checkInstances(() => {
-      callback(primary, auxiliary);
-    });
-  });
+  pool.setupDaemons(() => callback());
 }
 
 function mockSetupSettings(pool, callback) {
@@ -150,24 +138,15 @@ function mockClient() {
 
 describe('Test pool functionality', () => {
 
-  let primary, auxiliary;
-  let primaryDaemonsCopy, auxiliaryDaemonsCopy;
   let configCopy, configMainCopy, rpcDataCopy, auxDataCopy;
   let blockchainDataCopy, peerDataCopy;
-
   beforeEach(() => {
     configCopy = JSON.parse(JSON.stringify(config));
     configMainCopy = JSON.parse(JSON.stringify(configMain));
-    primaryDaemonsCopy = JSON.parse(JSON.stringify(primaryDaemons));
-    auxiliaryDaemonsCopy = JSON.parse(JSON.stringify(auxiliaryDaemons));
-
     rpcDataCopy = JSON.parse(JSON.stringify(testdata.getBlockTemplate()));
     auxDataCopy = JSON.parse(JSON.stringify(testdata.getAuxBlock()));
     blockchainDataCopy = JSON.parse(JSON.stringify(testdata.getBlockchainInfo()));
     peerDataCopy = JSON.parse(JSON.stringify(testdata.getPeerInfo()));
-
-    primary = new Daemon(primaryDaemonsCopy);
-    auxiliary = new Daemon(auxiliaryDaemonsCopy);
   });
 
   beforeEach(() => nock.cleanAll());
@@ -178,13 +157,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test initialization of pool', () => {
-    const pool = new Pool(configCopy, configMainCopy, primary, auxiliary);
+    const pool = new Pool(configCopy, configMainCopy, () => {});
     expect(typeof pool).toBe('object');
   });
 
   test('Test port difficulty setup [1]', () => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       pool.setupPorts();
       expect(typeof pool.difficulty).toBe('object');
       expect(typeof pool.difficulty['3002']).toBe('object');
@@ -194,37 +173,37 @@ describe('Test pool functionality', () => {
   });
 
   test('Test port difficulty setup [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       pool.difficulty['3002'] = { removeAllListeners: () => done() };
       pool.setupPorts();
     });
   });
 
   test('Test port difficulty setup [3]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = { enqueueDifficulty: () => done() };
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const client = { enqueueDifficulty: () => done() };
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       pool.setupPorts();
       pool.difficulty['3002'].emit('client.difficulty.new', client);
     });
   });
 
   test('Test pool settings setup [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toContain('Could not start pool, error with RPC response');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toContain('Could not start pool, error with RPC response');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       pool.setupSettings(() => {});
     });
   });
 
   test('Test pool settings setup [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/').reply(200, JSON.stringify([
           { id: 'nocktest', error: null, result: { isvalid: true, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }},
@@ -242,8 +221,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool settings setup [3]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toContain('Could not start pool, error with RPC command response: validateaddress');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/').reply(200, JSON.stringify([
           { id: 'nocktest', error: true, result: { isvalid: true, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }},
@@ -251,18 +235,18 @@ describe('Test pool functionality', () => {
           { id: 'nocktest', error: null, result: { chain: 'main', difficulty: 0 }},
           { id: 'nocktest', error: null, result: { protocolversion: 1, connections: 1 }},
         ]));
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toContain('Could not start pool, error with RPC command response: validateaddress');
-        done();
-      });
       pool.setupSettings(() => {});
     });
   });
 
   test('Test pool settings setup [4]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toBe('The daemon reports that the given address is not valid');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/').reply(200, JSON.stringify([
           { id: 'nocktest', error: null, result: { isvalid: false, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }},
@@ -270,18 +254,13 @@ describe('Test pool functionality', () => {
           { id: 'nocktest', error: null, result: { chain: 'main', difficulty: 0 }},
           { id: 'nocktest', error: null, result: { protocolversion: 1, connections: 1 }},
         ]));
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toBe('The daemon reports that the given address is not valid');
-        done();
-      });
       pool.setupSettings(() => {});
     });
   });
 
   test('Test pool settings setup [5]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/').reply(200, JSON.stringify([
           { id: 'nocktest', error: null, result: { isvalid: true, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }},
@@ -299,8 +278,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool settings setup [6]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/').reply(200, JSON.stringify([
           { id: 'nocktest', error: null, result: { isvalid: true, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }},
@@ -318,8 +297,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool recipient setup [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupRecipients();
         expect(pool.statistics.feePercentage).toBe(0.05);
@@ -330,13 +309,13 @@ describe('Test pool functionality', () => {
 
   test('Test pool recipient setup [2]', (done) => {
     configCopy.primary.recipients = [];
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('warning');
-        expect(text).toBe('No recipients have been added, which means that no fees will be taken');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('warning');
+      expect(text).toBe('No recipients have been added, which means that no fees will be taken');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupRecipients();
       });
@@ -344,8 +323,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         expect(typeof pool.manager).toBe('object');
@@ -357,8 +336,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         pool.network = { broadcastMiningJobs: () => done() };
@@ -368,8 +347,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [3]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         pool.manager.emit('manager.block.new', rpcDataCopy);
@@ -379,13 +358,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [4]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when submitting block: true');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when submitting block: true');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         nock('http://127.0.0.1:8332')
           .post('/', body => body.method === 'submitblock')
@@ -439,13 +418,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [5]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toBe('Primary daemon instance (127.0.0.1) rejected a supposedly valid block');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toBe('Primary daemon instance (127.0.0.1) rejected a supposedly valid block');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         nock('http://127.0.0.1:8332')
           .post('/', body => body.method === 'submitblock')
@@ -499,19 +478,19 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [6]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          expect(response[0][0]).toBe('special');
-          expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
-          expect(response[1][0]).toBe('error');
-          expect(response[1][1]).toBe('The block was rejected by the network');
-          done();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        expect(response[0][0]).toBe('special');
+        expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
+        expect(response[1][0]).toBe('error');
+        expect(response[1][1]).toBe('The block was rejected by the network');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.on('pool.share', () => {
           nock('http://127.0.0.1:8332')
@@ -581,19 +560,19 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [7]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          expect(response[0][0]).toBe('special');
-          expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
-          expect(response[1][0]).toBe('special');
-          expect(response[1][1]).toBe('Block notification via RPC after primary block submission');
-          done();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        expect(response[0][0]).toBe('special');
+        expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
+        expect(response[1][0]).toBe('special');
+        expect(response[1][1]).toBe('Block notification via RPC after primary block submission');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.on('pool.share', () => {
           nock('http://127.0.0.1:8332')
@@ -667,19 +646,19 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [8]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          expect(response[0][0]).toBe('special');
-          expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
-          expect(response[1][0]).toBe('error');
-          expect(response[1][1]).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
-          done();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        expect(response[0][0]).toBe('special');
+        expect(response[0][1]).toBe('Submitted a primary block (Bitcoin:1) successfully to Bitcoin\'s daemon instance(s)');
+        expect(response[1][0]).toBe('error');
+        expect(response[1][1]).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.on('pool.share', () => {
           nock('http://127.0.0.1:8332')
@@ -753,13 +732,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [9]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.on('pool.share', () => {
           nock('http://127.0.0.1:8332')
@@ -815,13 +794,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [10]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.on('pool.share', (data, type) => {
           expect(type).toBe('stale');
@@ -850,13 +829,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool manager setup [11]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('error');
-        expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('error');
+      expect(text).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.on('pool.share', (data, type) => {
           expect(type).toBe('invalid');
@@ -885,16 +864,16 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool blockchain setup [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      nock('http://127.0.0.1:8332')
-        .post('/', body => body.method === 'getblocktemplate')
-        .reply(200, JSON.stringify({
-          id: 'nocktest',
-          error: null,
-          result: rpcDataCopy,
-        }));
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
+        nock('http://127.0.0.1:8332')
+          .post('/', body => body.method === 'getblocktemplate')
+          .reply(200, JSON.stringify({
+            id: 'nocktest',
+            error: null,
+            result: rpcDataCopy,
+          }));
         pool.setupPrimaryBlockchain(() => {
           done();
         });
@@ -903,13 +882,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool blockchain setup [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('warning');
-        expect(text).toBe('Downloaded 100.00% of blockchain from 1 peers');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('warning');
+      expect(text).toBe('Downloaded 100.00% of blockchain from 1 peers');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         nock('http://127.0.0.1:8332')
           .post('/', body => body.method === 'getblocktemplate')
@@ -939,16 +918,17 @@ describe('Test pool functionality', () => {
 
   test('Test pool blockchain setup [3]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      nock('http://127.0.0.1:8336')
-        .post('/', body => body.method === 'getauxblock')
-        .reply(200, JSON.stringify({
-          id: 'nocktest',
-          error: null,
-          result: auxDataCopy,
-        }));
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
+        nock('http://127.0.0.1:8336')
+          .post('/', body => body.method === 'getauxblock')
+          .reply(200, JSON.stringify({
+            id: 'nocktest',
+            error: null,
+            result: auxDataCopy,
+          }));
         pool.setupAuxiliaryBlockchain(() => {
           done();
         });
@@ -958,13 +938,14 @@ describe('Test pool functionality', () => {
 
   test('Test pool blockchain setup [4]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('warning');
-        expect(text).toBe('Downloaded 100.00% of blockchain from 1 peers');
-        done();
-      });
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('warning');
+      expect(text).toBe('Downloaded 100.00% of blockchain from 1 peers');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         nock('http://127.0.0.1:8336')
           .post('/', body => body.method === 'getauxblock')
@@ -993,16 +974,16 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool blockchain setup [5]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      nock('http://127.0.0.1:8336')
-        .post('/', body => body.method === 'getauxblock')
-        .reply(200, JSON.stringify({
-          id: 'nocktest',
-          error: null,
-          result: auxDataCopy,
-        }));
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
+        nock('http://127.0.0.1:8336')
+          .post('/', body => body.method === 'getauxblock')
+          .reply(200, JSON.stringify({
+            id: 'nocktest',
+            error: null,
+            result: auxDataCopy,
+          }));
         pool.setupAuxiliaryBlockchain(() => {
           done();
         });
@@ -1011,8 +992,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool first job setup [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1036,19 +1017,19 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool first job setup [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          expect(response[0][0]).toBe('error');
-          expect(response[0][1]).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
-          expect(response[1][0]).toBe('error');
-          expect(response[1][1]).toBe('RPC error with primary daemon instance when creating the first job');
-          done();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        expect(response[0][0]).toBe('error');
+        expect(response[0][1]).toBe('RPC error with primary daemon instance (127.0.0.1) when requesting a primary template update: true');
+        expect(response[1][0]).toBe('error');
+        expect(response[1][1]).toBe('RPC error with primary daemon instance when creating the first job');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1068,13 +1049,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool first job setup [3]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        expect(type).toBe('warning');
-        expect(text).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-        done();
-      });
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      expect(type).toBe('warning');
+      expect(text).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+      done();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1094,8 +1075,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool first job setup [4]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         pool.statistics.difficulty = 400;
@@ -1118,19 +1099,19 @@ describe('Test pool functionality', () => {
   test('Test pool block polling setup [1]', (done) => {
     rpcDataCopy.height = 2;
     rpcDataCopy.previousblockhash = '1d5af7e2ad9aeccb110401761938c07a5895d85711c9c5646661a10407c82769';
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:2) via RPC polling');
-          done();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('log');
+        expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:2) via RPC polling');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1156,21 +1137,22 @@ describe('Test pool functionality', () => {
     auxDataCopy.height = 2;
     auxDataCopy.hash = '1d5af7e2ad9aeccb110401761938c07a5895d85711c9c5646661a10407c82769';
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 3) {
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:1) via RPC polling');
-          expect(response[2][0]).toBe('log');
-          expect(response[2][1]).toBe('Requested template from auxiliary chain (Namecoin:2) via RPC polling');
-          done();
-        }
-      });
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 3) {
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('log');
+        expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:1) via RPC polling');
+        expect(response[2][0]).toBe('log');
+        expect(response[2][1]).toBe('Requested template from auxiliary chain (Namecoin:2) via RPC polling');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1204,19 +1186,20 @@ describe('Test pool functionality', () => {
     auxDataCopy.height = 2;
     auxDataCopy.hash = '1d5af7e2ad9aeccb110401761938c07a5895d85711c9c5646661a10407c82769';
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('error');
-          expect(response[1][1]).toBe('RPC error with auxiliary daemon instance (127.0.0.1) when requesting an auxiliary template update: true');
-          done();
-        }
-      });
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('error');
+        expect(response[1][1]).toBe('RPC error with auxiliary daemon instance (127.0.0.1) when requesting an auxiliary template update: true');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1252,21 +1235,22 @@ describe('Test pool functionality', () => {
     auxDataCopy._target = auxDataCopy.target;
     auxDataCopy.target = null;
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 3) {
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:1) via RPC polling');
-          expect(response[2][0]).toBe('log');
-          expect(response[2][1]).toBe('Requested template from auxiliary chain (Namecoin:2) via RPC polling');
-          done();
-        }
-      });
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 3) {
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('log');
+        expect(response[1][1]).toBe('Requested template from primary chain (Bitcoin:1) via RPC polling');
+        expect(response[2][0]).toBe('log');
+        expect(response[2][1]).toBe('Requested template from auxiliary chain (Namecoin:2) via RPC polling');
+        done();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1297,8 +1281,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1320,20 +1304,20 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('debug');
-          expect(response[1][1]).toBe('No new blocks for 60 seconds. Updating transactions and rebroadcasting work');
-          pool.network.stopNetwork();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('debug');
+        expect(response[1][1]).toBe('No new blocks for 60 seconds. Updating transactions and rebroadcasting work');
+        pool.network.stopNetwork();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1357,20 +1341,20 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [3]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 3) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[2][0]).toBe('debug');
-          expect(response[2][1]).toBe('No new blocks for 60 seconds. Updating transactions and rebroadcasting work');
-          pool.network.stopNetwork();
-        }
-      });
+    const response = [];
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 3) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[2][0]).toBe('debug');
+        expect(response[2][1]).toBe('No new blocks for 60 seconds. Updating transactions and rebroadcasting work');
+        pool.network.stopNetwork();
+      }
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1394,13 +1378,13 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [4]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('client.socket.success', () => {
-        pool.network.on('network.stopped', () => done());
-        pool.network.stopNetwork();
-      });
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('client.socket.success', () => {
+      pool.network.on('network.stopped', () => done());
+      pool.network.stopNetwork();
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1417,9 +1401,9 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [5]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1440,24 +1424,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [6]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Difficulty update queued for worker: 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 (8)');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.difficulty.queued', 8);
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('log');
+        expect(response[1][1]).toBe('Difficulty update queued for worker: 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 (8)');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.difficulty.queued', 8);
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1474,25 +1458,25 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [7]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Difficulty updated successfully for worker: 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 (8)');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        pool.difficulty[client.socket.localPort] = { clients: { 'test': ['test'] }};
-        client.emit('client.difficulty.updated', 8);
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('log');
+        expect(response[1][1]).toBe('Difficulty updated successfully for worker: 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 (8)');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      pool.difficulty[client.socket.localPort] = { clients: { 'test': ['test'] }};
+      client.emit('client.difficulty.updated', 8);
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1509,24 +1493,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [8]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A client (client [example]) sent a malformed message to the server: test');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.socket.malformed', 'test');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('A client (client [example]) sent a malformed message to the server: test');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.socket.malformed', 'test');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1543,24 +1527,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [9]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('Socket flooding was detected from a client (client [example])');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.socket.flooded');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('Socket flooding was detected from a client (client [example])');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.socket.flooded');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1577,24 +1561,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [10]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A socket error was detected from a client (client [example]): "test"');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.socket.error', 'test');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('A socket error was detected from a client (client [example]): "test"');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.socket.error', 'test');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1611,24 +1595,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [11]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A client (client [example]) was timed out from the server: "test"');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.socket.timeout', 'test');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('A client (client [example]) was timed out from the server: "test"');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.socket.timeout', 'test');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1645,24 +1629,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [12]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A client (client [example]) disconnected from the server');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.socket.disconnect');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('A client (client [example]) disconnected from the server');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.socket.disconnect');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1679,24 +1663,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [13]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A client (client [example]) disconnected from the server');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.socket.disconnect');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('A client (client [example]) disconnected from the server');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.socket.disconnect');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1713,24 +1697,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [14]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('Rejected incoming connection (client [example]). The client is banned for 1000 seconds');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.ban.kicked', 1000);
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('Rejected incoming connection (client [example]). The client is banned for 1000 seconds');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.ban.kicked', 1000);
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1747,24 +1731,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [15]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('log');
-          expect(response[1][1]).toBe('Forgave banned client (client [example]). They can now reconnect to the pool');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.ban.forgave');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('log');
+        expect(response[1][1]).toBe('Forgave banned client (client [example]). They can now reconnect to the pool');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.ban.forgave');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1781,24 +1765,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [16]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('Because of malicious behavior, a client (client [example]) has been banned');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.ban.trigger');
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('Because of malicious behavior, a client (client [example]) has been banned');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.ban.trigger');
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1815,24 +1799,24 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [17]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const response = [];
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('pool.log', (type, text) => {
-        response.push([type, text]);
-        if (response.length === 2) {
-          pool.network.on('network.stopped', () => done());
-          expect(response[0][0]).toBe('warning');
-          expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
-          expect(response[1][0]).toBe('warning');
-          expect(response[1][1]).toBe('A client (client [example]) sent an unknown stratum method to the server: test');
-          pool.network.stopNetwork();
-        }
-      });
-      pool.on('client.socket.success', () => {
-        client.emit('client.mining.unknown', { method: 'test' });
-      });
+    const response = [];
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('pool.log', (type, text) => {
+      response.push([type, text]);
+      if (response.length === 2) {
+        pool.network.on('network.stopped', () => done());
+        expect(response[0][0]).toBe('warning');
+        expect(response[0][1]).toBe('Network difficulty (0) is lower than the difficulty on port 3002 (32)');
+        expect(response[1][0]).toBe('warning');
+        expect(response[1][1]).toBe('A client (client [example]) sent an unknown stratum method to the server: test');
+        pool.network.stopNetwork();
+      }
+    });
+    pool.on('client.socket.success', () => {
+      client.emit('client.mining.unknown', { method: 'test' });
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1849,15 +1833,15 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [18]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('client.socket.success', () => {
-        client.emit('client.subscription', {}, () => {
-          pool.network.on('network.stopped', () => done());
-          pool.network.stopNetwork();
-        });
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('client.socket.success', () => {
+      client.emit('client.subscription', {}, () => {
+        pool.network.on('network.stopped', () => done());
+        pool.network.stopNetwork();
       });
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1875,15 +1859,15 @@ describe('Test pool functionality', () => {
 
   test('Test pool stratum setup [19]', (done) => {
     configCopy.ports = [{ 'port': 3002, 'enabled': true, 'difficulty': {}}];
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('client.socket.success', () => {
-        client.emit('client.subscription', {}, () => {
-          pool.network.on('network.stopped', () => done());
-          pool.network.stopNetwork();
-        });
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('client.socket.success', () => {
+      client.emit('client.subscription', {}, () => {
+        pool.network.on('network.stopped', () => done());
+        pool.network.stopNetwork();
       });
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1900,20 +1884,20 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [20]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('client.socket.success', () => {
-        pool.manager = { handleShare: () => {
-          return { error: true, response: null };
-        }};
-        client.emit('client.submit', { params: [null, 'id', 'extraNonce', 'time', 'nonce', 'version'] }, (error, result) => {
-          pool.network.on('network.stopped', () => done());
-          expect(error).toBe(true);
-          expect(result).toBe(null);
-          pool.network.stopNetwork();
-        });
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('client.socket.success', () => {
+      pool.manager = { handleShare: () => {
+        return { error: true, response: null };
+      }};
+      client.emit('client.submit', { params: [null, 'id', 'extraNonce', 'time', 'nonce', 'version'] }, (error, result) => {
+        pool.network.on('network.stopped', () => done());
+        expect(error).toBe(true);
+        expect(result).toBe(null);
+        pool.network.stopNetwork();
       });
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1930,20 +1914,20 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum setup [21]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const client = mockClient();
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
-      pool.on('client.socket.success', () => {
-        pool.manager = { handleShare: () => {
-          return { error: null, response: true };
-        }};
-        client.emit('client.submit', { params: [null, 'id', 'extraNonce', 'time', 'nonce', 'version'] }, (error, result) => {
-          pool.network.on('network.stopped', () => done());
-          expect(error).toBe(null);
-          expect(result).toBe(true);
-          pool.network.stopNetwork();
-        });
+    const client = mockClient();
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    pool.on('client.socket.success', () => {
+      pool.manager = { handleShare: () => {
+        return { error: null, response: true };
+      }};
+      client.emit('client.submit', { params: [null, 'id', 'extraNonce', 'time', 'nonce', 'version'] }, (error, result) => {
+        pool.network.on('network.stopped', () => done());
+        expect(error).toBe(null);
+        expect(result).toBe(true);
+        pool.network.stopNetwork();
       });
+    });
+    mockSetupDaemons(pool, () => {
       mockSetupSettings(pool, () => {
         pool.setupManager();
         mockSetupPrimaryBlockchain(pool, () => {
@@ -1960,8 +1944,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [1]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -1969,7 +1953,7 @@ describe('Test pool functionality', () => {
           error: null,
           result: { isvalid: true, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }
         }));
-      pool.checkWorker(primarySetup, 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', (valid) => {
+      pool.checkWorker(pool.primary.daemon, 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', (valid) => {
         expect(valid).toBe(true);
         done();
       });
@@ -1977,8 +1961,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [2]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -1986,7 +1970,7 @@ describe('Test pool functionality', () => {
           error: null,
           result: { isvalid: true, address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' }
         }));
-      pool.checkWorker(primarySetup, 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq.worker1', (valid) => {
+      pool.checkWorker(pool.primary.daemon, 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq.worker1', (valid) => {
         expect(valid).toBe(true);
         done();
       });
@@ -1994,8 +1978,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [3]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2011,8 +1995,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [4]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2028,8 +2012,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [5]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2046,8 +2030,9 @@ describe('Test pool functionality', () => {
 
   test('Test pool stratum authentication [6]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8336')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2064,8 +2049,9 @@ describe('Test pool functionality', () => {
 
   test('Test pool stratum authentication [7]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8336')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2082,8 +2068,9 @@ describe('Test pool functionality', () => {
 
   test('Test pool stratum authentication [8]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       pool.checkAuxiliaryWorker('0.0.0.0', 3001, null, () => {}, (result) => {
         expect(result).toStrictEqual({ 'error': null, 'authorized': false, 'disconnect': false });
         done();
@@ -2092,8 +2079,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [9]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       pool.checkAuxiliaryWorker('0.0.0.0', 3001, null, (valid) => {
         expect(valid).toBe(true);
         done();
@@ -2102,8 +2089,8 @@ describe('Test pool functionality', () => {
   });
 
   test('Test pool stratum authentication [10]', (done) => {
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2120,8 +2107,9 @@ describe('Test pool functionality', () => {
 
   test('Test pool stratum authentication [11]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
@@ -2145,8 +2133,9 @@ describe('Test pool functionality', () => {
 
   test('Test pool stratum authentication [11]', (done) => {
     configCopy.auxiliary = auxiliaryConfig;
-    mockSetupDaemons(primary, auxiliary, (primarySetup, auxiliarySetup) => {
-      const pool = new Pool(configCopy, configMainCopy, primarySetup, auxiliarySetup, () => {});
+    configCopy.auxiliary.daemons = auxiliaryDaemons;
+    const pool = new Pool(configCopy, configMainCopy, () => {});
+    mockSetupDaemons(pool, () => {
       nock('http://127.0.0.1:8332')
         .post('/', body => body.method === 'validateaddress')
         .reply(200, JSON.stringify({
