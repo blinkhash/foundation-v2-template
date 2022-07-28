@@ -50,7 +50,8 @@
     "nan": "^2.15.0",
     "node-gyp": "^9.0.0",
     "nodemon": "^2.0.16",
-    "sha3": "2.1.4"
+    "sha3": "2.1.4",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "codecov": "^3.8.1",
